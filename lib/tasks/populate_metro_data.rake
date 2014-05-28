@@ -53,5 +53,17 @@ task :collect_route_stops => [:environment] do
 	end
 
 	# StopTimeRaw.find_each do |stop_time|
+		# trip_stops = Hash.new
+		# longest_route_forward = Hash.new
+		# longest_route_backwards = Hash.new
+		# stop_times.find_each do |stop_time|
+			# if stop_time.trip_id in trip_stops:
+				# trip_stops[trip_id] = []
+				# trip_stops << {stop_id: stop_time.stop_id, stop_time:start_time}
+			# end
+		# end
 	# end
+
+	# for key in trip_stops:
+	# 
 end
