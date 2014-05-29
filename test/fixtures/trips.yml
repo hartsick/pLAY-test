@@ -1,0 +1,11 @@
+# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  rapper_id: 
+  dep_id: 1
+  arr_id: 1
+
+two:
+  rapper_id: 
+  dep_id: 1
+  arr_id: 1
