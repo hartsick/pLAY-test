@@ -4,10 +4,10 @@ task :populate_metro_data => [:environment] do |t, args|
 
 	# build csv / model library
 	files_to_load = Hash.new
-	files_to_load["routes.csv"] = RouteRaw
-	# files_to_load["stops.csv"] = StopRaw
-	# files_to_load["stop_times.csv"] = StopTimeRaw
-	# files_to_load["trips.csv"] = TripRaw
+	files_to_load["lib/assets/routes.csv"] = RouteRaw
+	files_to_load["lib/assets/stops.csv"] = StopRaw
+	files_to_load["lib/assets/stop_times.csv"] = StopTimeRaw
+	files_to_load["lib/assets/trips.csv"] = TripRaw
 
 	files_to_load.each do |filename, thisModel|
 		# clear previous data
