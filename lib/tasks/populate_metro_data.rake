@@ -1,26 +1,35 @@
 # store csv info into psql
-task :populate_metro_data, [:filename, :model] => [:environment] do |t, args|
+task :populate_metro_data => [:environment] do |t, args|
 	require 'csv'
 
-	# clear previous data
-	Module.const_get(args[:model]).delete_all
-	
-	# read lines from csv, create table headers from csv header
-	lines = File.new(args[:filename]).readlines
-	header = lines.shift.strip
-	keys = header.split(',')
-	
-	# for each line, store value in relevant column
-	lines.each do |line|
-		values = line.strip.split(',')
-		attributes = Hash[keys.zip values]
-		Module.const_get(args[:model]).create(attributes)
+	# build csv / model library
+	files_to_load = Hash.new
+	files_to_load["routes.csv"] = RouteRaw
+	# files_to_load["stops.csv"] = StopRaw
+	# files_to_load["stop_times.csv"] = StopTimeRaw
+	# files_to_load["trips.csv"] = TripRaw
+
+	files_to_load.each do |filename, thisModel|
+		# clear previous data
+		thisModel.delete_all
+		
+		# read lines from csv, create table headers from csv header
+		lines = File.new(filename).readlines
+		header = lines.shift.strip
+		keys = header.split(',')
+		
+		# for each line, store value in relevant column
+		lines.each do |line|
+			values = line.strip.split(',')
+			attributes = Hash[keys.zip values]
+			thisModel.create(attributes)
+		end
 	end
 end
 
 
 # populate table with useful route data
-task :aggregate_route_data => [:environment] do
+task :aggregate_route_data => [:environment, :populate_metro_data] do
 
 	RouteRaw.find_each do |raw_route|
 		route = Route.new
@@ -36,7 +45,7 @@ end
 
 
 # populate table with useful stop data
-task :aggregate_stop_data => [:environment] do
+task :aggregate_stop_data => [:environment, :populate_metro_data] do
 
 	StopRaw.find_each do |raw_stop|
 		stop = Stop.new
@@ -50,49 +59,59 @@ task :aggregate_stop_data => [:environment] do
 	end
 end
 
+# store stops in appropriate route
+task :associate_stops_to_route => [:environment, :aggregate_stop_data, :aggregate_route_data] do
 
-# draw relationship between routes and stops
-task :collect_route_stops => [:environment] do
+	# populate stops library
+	all_stops = Hash.new
+	Stop.all.each do |stop|
+		all_stops[stop.stop_id] = stop.id
+	end
 
-	# cache data from trips
-	trip_route = Hash.new
-	trip_direction = Hash.new
-	trip_stops = Hash.new
-	longest_route = Hash.new
+	all_routes = Route.all
+	counter = 1
+	# two_routes = []
+	# two_routes << Route.first
+	# two_routes << Route.last
 
-	# for each stop_time...
-	StopTimes.find_each do |stop_time|
-		# create a new array if current stop doesn't exist in trip_stops
-		unless trip_stops.include? (stop_time.trip_id)
-			trip_stops[trip_id] = []
+	# iterate through each route
+	all_routes.each do |r|
+		trips = TripRaw.where(route_id: r.route_id)
+
+		puts "processing #{r.route_short_name}: # #{counter} of #{all_routes.length}"
+
+		# holder for winning trip (for route!)
+		route_trip = trips.first
+
+		# iterate through each trip for route
+		trips.each do |trip|
+
+			longest_trip = 0
+
+			# grab all stops for a given trip
+			trip_stops = StopTimeRaw.where(trip_id: trip.trip_id)
+
+			# keep track of longest trip (most # stops)
+			if trip_stops.length > longest_trip
+				longest_trip = trip_stops.length
+				route_trip = trip
+			end
+
 		end
-		# otherwise, store current stop in array
-		trip_stops[trip_id] << { stop_id: stop_time.stop_id, stop_time: stop_time.start_time, stop_sequence: stop_time.stop_sequence }
 
-		# clear trip_stops before proceeding
-		trip_stops = nil
+		puts "done processing route. moving to stop_times..."
 
+		# get all stops for given route
+		route_stops = StopTimeRaw.where(trip_id: route_trip.trip_id)
 
+		# store primary keys in route_stops table
+		route_stops.each do |s|
+			RouteStop.create!(route_id: r.id, stop_id: all_stops[s.stop_id], stop_sequence: s.stop_sequence)
+		end
+
+		counter += 1
 
 	end
 
-	TripRaw.all.each do |trip|
-		trip_route[trip.trip_id] = trip.route_id
-		trip_direction[trip.trip_id] = trip.direction_id
-	end
-
-	# StopTimeRaw.find_each do |stop_time|
-		# trip_stops = Hash.new
-		# longest_route_forward = Hash.new
-		# longest_route_backwards = Hash.new
-		# stop_times.find_each do |stop_time|
-			# if stop_time.trip_id in trip_stops:
-				# trip_stops[trip_id] = []
-				# trip_stops << {stop_id: stop_time.stop_id, stop_time:start_time}
-			# end
-		# end
-	# end
-
-	# for key in trip_stops:
-	# 
 end
+
